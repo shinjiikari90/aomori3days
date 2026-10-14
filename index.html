@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>🐶🐥🇯🇵 아오모리 여행 플래너 & 지도</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Inter & Noto Sans KR -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Leaflet OpenStreetMap Interactive Map Library CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            -webkit-tap-highlight-color: transparent;
+        }
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        .ios-blur {
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+        /* Leaflet custom marker styling */
+        .custom-map-marker {
+            background: #0284c7;
+            color: white;
+            border: 2px solid white;
+            border-radius: 9999px;
+            font-weight: 800;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+        }
+        /* Map container styling */
+        #map {
+            width: 100%;
+            height: 320px;
+            border-radius: 1.25rem;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen pb-12">
+
+    <header class="bg-gradient-to-r from-rose-500 via-sky-600 to-indigo-600 text-white sticky top-0 z-50 shadow-lg">
+        <div class="max-w-md mx-auto px-4 pt-3 pb-3 flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">🐶🐥🇯🇵</span>
+                    <div>
+                        <h1 class="font-extrabold text-base tracking-tight leading-none">아오모리 2박 3일 플래너</h1>
+                        <span class="text-[10px] text-sky-100 opacity-90 font-medium">인터랙티브 대화형 지도 포함</span>
+                    </div>
+                </div>
+                <div class="bg-white/20 px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md">
+                    총 경비 ￥21,600 / 인
+                </div>
+            </div>
+            
+            <!-- Real-time KST Clock & Active Task Alert Banner -->
+            <div id="clockBanner" class="bg-slate-900/40 ios-blur rounded-2xl p-3 border border-white/20 flex flex-col gap-1.5 shadow-inner">
+                <div class="flex justify-between items-center text-xs text-sky-100">
+                    <span id="currentDateText" class="font-semibold text-slate-200">대한민국(KST) 시계</span>
+                    <span id="currentTimeText" class="font-mono text-sm font-extrabold tracking-wider text-amber-300">00:00:00</span>
+                </div>
+                <div id="activeTaskBox" class="bg-white/10 rounded-xl p-2.5 flex items-center justify-between text-xs backdrop-blur-sm">
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <span class="relative flex h-2.5 w-2.5 shrink-0">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                        </span>
+                        <div class="truncate">
+                            <p class="text-slate-300 text-[9px] uppercase font-bold tracking-wider">현재 일정</p>
+                            <p id="activeTaskTitle" class="font-bold text-white text-xs truncate">일정 로딩 중...</p>
+                        </div>
+                    </div>
+                    <span id="activeTaskTime" class="bg-amber-500 text-white px-2 py-0.5 rounded-lg font-mono font-bold text-[10px] shrink-0">--:--</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto px-4 pt-4">
+        <!-- Day Switcher Tabs -->
+        <div class="flex space-x-2 bg-slate-200/80 p-1.5 rounded-2xl mb-4 sticky top-[125px] z-40 ios-blur border border-slate-300/50 shadow-sm">
+            <button onclick="switchDay(1)" id="tab1" class="flex-1 py-2 rounded-xl font-bold text-xs transition bg-sky-600 text-white shadow-sm">
+                1일차 <span class="block font-normal text-[10px] opacity-90">10.16 (금)</span>
+            </button>
+            <button onclick="switchDay(2)" id="tab2" class="flex-1 py-2 rounded-xl font-bold text-xs transition text-slate-600 hover:bg-white/50">
+                2일차 <span class="block font-normal text-[10px] opacity-70">10.17 (토)</span>
+            </button>
+            <button onclick="switchDay(3)" id="tab3" class="flex-1 py-2 rounded-xl font-bold text-xs transition text-slate-600 hover:bg-white/50">
+                3일차 <span class="block font-normal text-[10px] opacity-70">10.18 (일)</span>
+            </button>
+        </div>
+
+        <!-- Interactive Map Section -->
+        <div class="bg-white rounded-3xl p-3.5 shadow-sm border border-slate-200/80 mb-4">
+            <div class="flex items-center justify-between mb-2 px-1">
+                <h3 class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                    <span class="text-base">🗺️</span> <span id="mapDayTitle">1일차 아오모리 실시간 인터랙티브 지도</span>
+                </h3>
+                <span class="text-[10px] text-sky-600 font-bold bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">확대/터치 가능</span>
+            </div>
+            <!-- Leaflet Map Container -->
+            <div id="map" class="shadow-inner border border-slate-200"></div>
+            <p class="text-[10px] text-slate-400 mt-2 text-center">💡 마커를 터치하면 상세 장소 이름과 이동 안내가 나타납니다.</p>
+        </div>
+
+        <!-- Dynamic Day Itinerary Container -->
+        <div id="dayContent" class="space-y-4">
+            <!-- Injected by JavaScript -->
+        </div>
+    </main>
+
+    <div id="flightModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl transform scale-95 transition-transform duration-300 border border-slate-100" id="flightModalContent">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">✈️</span>
+                    <div>
+                        <h3 id="modalFlightNumber" class="font-bold text-slate-800 text-base leading-tight">실시간 운항 정보</h3>
+                        <p class="text-[10px] text-slate-400">대한항공 (Korean Air)</p>
+                    </div>
+                </div>
+                <button onclick="closeFlightModal()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 font-bold text-sm">✕</button>
+            </div>
+            <div class="space-y-3.5 text-xs">
+                <div class="bg-gradient-to-r from-sky-50 to-indigo-50 border border-sky-100 rounded-2xl p-3.5 flex justify-between items-center shadow-sm">
+                    <div>
+                        <p id="modalDepLabel" class="text-[10px] text-sky-600 font-bold uppercase">출발</p>
+                        <p id="modalDepPlace" class="font-extrabold text-slate-800 text-base">인천 T2</p>
+                        <p id="modalDepTime" class="text-[11px] text-slate-500 font-mono mt-0.5">09:05</p>
+                    </div>
+                    <div class="text-center font-bold text-sky-400 text-sm">➔</div>
+                    <div class="text-right">
+                        <p id="modalArrLabel" class="text-[10px] text-sky-600 font-bold uppercase">도착</p>
+                        <p id="modalArrPlace" class="font-extrabold text-slate-800 text-base">아오모리</p>
+                        <p id="modalArrTime" class="text-[11px] text-slate-500 font-mono mt-0.5">11:35</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-200/60">
+                        <span class="text-[10px] text-slate-400 block font-medium">현재 운항 상태</span>
+                        <span class="inline-block mt-1 font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px]">🟢 정상 운항 예정</span>
+                    </div>
+                    <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-200/60">
+                        <span class="text-[10px] text-slate-400 block font-medium">좌석 및 수하물</span>
+                        <span class="font-bold text-slate-800 block mt-1 text-[11px]">일반석 23kg 무료</span>
+                    </div>
+                </div>
+                <button onclick="closeFlightModal()" class="w-full bg-sky-600 text-white font-bold py-3 rounded-2xl shadow-md hover:bg-sky-700 transition active:scale-98">확인 완료</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Exact travel itinerary
+        const travelData = {
+            1: {
+                date: "10월 16일 (금)",
+                title: "1일차: 도착 및 아오모리 시내 탐방",
+                totalCost: "￥8,620 (+ ₩14,100)",
+                items: [
+                    { start: "05:10", end: "06:40", time: "05:10 - 06:40", title: "오산역 -> 인천공항제2터미널 이동", cost: "₩14,100", type: "transit", note: "공항철도 또는 공항버스 이용", tip: "T2 터미널 하차 필수!" },
+                    { start: "06:50", end: "07:10", time: "06:50 - 07:10", title: "체크인", cost: "-", type: "transit", note: "오토체크인 완료", tip: "모바일 항공권 바코드를 미리 캡처해두면 편리합니다." },
+                    { start: "07:20", end: "08:30", time: "07:20 - 08:30", title: "라운지 식사 및 면세 구경", cost: "-", type: "food", note: "T2 면세구역 및 라운지", tip: "탑승동 이동 시간을 감안하여 20분 전 탑승구 도착!" },
+                    { start: "08:35", end: "09:05", time: "08:35 - 09:05", title: "보딩 시작", cost: "-", type: "transit", note: "KE2193 탑승구 대기", tip: "여권과 탑승권을 준비하세요." },
+                    { start: "09:05", end: "11:35", time: "09:05 - 11:35", title: "인천 -> 아오모리 Flight", cost: "-", type: "flight", flightCode: "KE2193", note: "KE2193 직항 (약 2시간 30분)", tip: "기내에서 입국신고서 작성 시 숙소 정보를 작성하세요." },
+                    { start: "11:35", end: "12:35", time: "11:35 - 12:35", title: "입국 수속, 짐 찾기", cost: "-", type: "transit", note: "아오모리 공항 입국장", tip: "Visit Japan Web QR코드를 준비하세요." },
+                    { start: "13:05", end: "13:40", time: "13:05 - 13:40", title: "아오모리 공항 -> 아오모리역 이동", cost: "￥860", type: "transit", note: "공항 리무진 버스 (860엔)", tip: "스이카 가능 또는 현금 잔돈 지참.", lat: 40.7332, lng: 140.6908 },
+                    { start: "13:40", end: "14:00", time: "13:40 - 14:00", title: "아오모리역 -> 호텔 이동", cost: "-", type: "hotel", note: "짐 맡기기", tip: "프론트에 짐을 맡기고 가볍게 출발!", lat: 40.8296, lng: 140.7344 },
+                    { start: "14:00", end: "15:00", time: "14:00 - 15:00", title: "점심식사 (미소카레라멘)", cost: "￥860", type: "food", note: "아지노삿포로 오오니시", tip: "된장+카레+우유+버터 라멘! 현금 준비.", lat: 40.8252, lng: 140.7423 },
+                    { start: "15:00", end: "15:30", time: "15:00 - 15:30", title: "호텔 체크인, 짐정리", cost: "-", type: "hotel", note: "체크인 후 휴식", tip: "와이파이 번호 확인 후 외출.", lat: 40.8296, lng: 140.7344 },
+                    { start: "15:30", end: "15:40", time: "15:30 - 15:40", title: "호텔 -> 히로타 신사 이동", cost: "-", type: "transit", note: "도보 10분", tip: "아오모리 골목길 산책하며 이동." },
+                    { start: "15:40", end: "16:10", time: "15:40 - 16:10", title: "히로타 신사 구경", cost: "￥200", type: "sight", note: "사과 오미쿠지 뽑기 (200엔)", tip: "귀여운 사과 모양 오미쿠지를 경험하세요.", lat: 40.8228, lng: 140.7441 },
+                    { start: "16:10", end: "16:20", time: "16:10 - 16:20", title: "히로타 신사 -> 아스팜 이동", cost: "-", type: "transit", note: "도보 10분", tip: "해변 공원 방향으로 천천히 이동." },
+                    { start: "16:20", end: "16:50", time: "16:20 - 16:50", title: "아스팜 (ASPAM) 구경", cost: "￥1,000", type: "shop", note: "삼각형 특산물관", tip: "갓 구운 사과파이 시식 강력 추천!", lat: 40.8322, lng: 140.7410 },
+                    { start: "16:50", end: "17:00", time: "16:50 - 17:00", title: "아스팜 -> 네부타의 집 이동", cost: "-", type: "transit", note: "바닷가 데크길 도보 5분", tip: "바람이 쌀쌀할 수 있으니 겉옷 착용." },
+                    { start: "17:00", end: "17:30", time: "17:00 - 17:30", title: "네부타의 집 와라세 구경", cost: "￥620", type: "sight", note: "네부타 축제등 박물관", tip: "실제 사용된 웅장한 거대 등 관람.", lat: 40.8308, lng: 140.7358 },
+                    { start: "17:30", end: "17:35", time: "17:30 - 17:35", title: "네부타의 집 -> A-factory 이동", cost: "-", type: "transit", note: "맞은편 도보 1분", tip: "바로 건너편 건물입니다." },
+                    { start: "17:35", end: "18:30", time: "17:35 - 18:30", title: "A-factory 구경 & 시드르 시음", cost: "￥1,500", type: "food", note: "2층 사과와인 시음 머신", tip: "충전 카드로 다양한 사과 와인 시음!", lat: 40.8310, lng: 140.7348 },
+                    { start: "18:30", end: "19:00", time: "18:30 - 19:00", title: "아오모리역 / LOVINA 구경", cost: "-", type: "shop", note: "도보 10분", tip: "역내 상점가 쇼핑." },
+                    { start: "19:00", end: "20:00", time: "19:00 - 20:00", title: "아오모리 호타테야 저녁식사", cost: "￥1,580", type: "food", note: "미소가리비구이 전문점", tip: "아오모리산 통가리비 구이 맛보기!", lat: 40.8285, lng: 140.7352 },
+                    { start: "20:00", end: "22:00", time: "20:00 - 22:00", title: "이자카야 로쿠베 또는 편의점", cost: "￥2,000", type: "food", note: "로컬 선술집 분위기", tip: "로손/세븐일레븐 사과 디저트 추천.", lat: 40.8273, lng: 140.7365 },
+                    { start: "23:00", end: "24:00", time: "23:00 ~", title: "호텔 취침", cost: "-", type: "hotel", note: "오이라세 트래킹 전 휴식", tip: "운동화를 미리 준비하세요." }
+                ]
+            },
+            2: {
+                date: "10월 17일 (토)",
+                title: "2일차: 오이라세 계류 트래킹 & 온천 힐링",
+                totalCost: "￥9,920",
+                items: [
+                    { start: "08:10", end: "10:10", time: "08:10 - 10:10", title: "아오모리역 -> 이시케도 이동", cost: "￥2,880", type: "transit", note: "JR버스 (약 2시간)", tip: "아오모리역 버스 탑승장에서 출발.", lat: 40.8296, lng: 140.7344 },
+                    { start: "10:10", end: "14:00", time: "10:10 - 14:00", title: "이시케도 -> 네노쿠치 트래킹", cost: "￥2,500", type: "sight", note: "오이라세 계류 산책 및 점심", tip: "울창한 숲과 계곡. 트래킹화 필수!", lat: 40.5312, lng: 140.9634 },
+                    { start: "14:19", end: "16:20", time: "14:19 - 16:20", title: "네노쿠치 -> 아오모리역 복귀", cost: "￥2,360", type: "transit", note: "JR버스 복귀", tip: "버스 출발 10분 전 대기.", lat: 40.4805, lng: 140.9022 },
+                    { start: "16:20", end: "16:30", time: "16:20 - 16:30", title: "아오모리역 -> 온천 이동", cost: "￥680", type: "transit", note: "도보 10분", tip: "천연 온천으로 이동." },
+                    { start: "16:30", end: "18:00", time: "16:30 - 18:00", title: "아오모리 마치나카 온천욕", cost: "-", type: "sight", note: "피로 해소 천연 온천", tip: "숙소에서 작은 수건을 챙겨가세요.", lat: 40.8239, lng: 140.7389 },
+                    { start: "18:00", end: "19:30", time: "18:00 - 19:30", title: "저녁 회 포장 (Auga/THREE)", cost: "￥1,500", type: "food", note: "지하 수산시장 & THREE 백화점", tip: "마감 할인 회 세트를 노려보세요!", lat: 40.8282, lng: 140.7360 },
+                    { start: "19:30", end: "20:30", time: "19:30 - 20:30", title: "LOVINA & THREE 쇼핑", cost: "-", type: "shop", note: "상점가 기념품 구경", tip: "사과 과자나 드럭스토어 물품 구매.", lat: 40.8290, lng: 140.7350 },
+                    { start: "20:30", end: "22:00", time: "20:30 - 22:00", title: "간술 또는 호텔 이동", cost: "-", type: "food", note: "로컬 사케 및 맥주 타임", tip: "아오모리 지사케 추천!" },
+                    { start: "23:00", end: "24:00", time: "23:00 ~", title: "취침", cost: "-", type: "hotel", note: "하루 마무리 휴식", tip: "내일 놋케동 일정을 위해 일찍 취침." }
+                ]
+            },
+            3: {
+                date: "10월 18일 (일)",
+                title: "3일차: 놋케동 조식 & 귀국",
+                totalCost: "￥3,060",
+                items: [
+                    { start: "07:30", end: "07:50", time: "07:30 - 07:50", title: "호텔 -> 교사이 센터 이동", cost: "-", type: "transit", note: "도보 10~15분", tip: "아침 공기 마시며 어시장으로 이동." },
+                    { start: "07:50", end: "08:50", time: "07:50 - 08:50", title: "아오모리 교사이 센터 (놋케동)", cost: "￥2,200", type: "food", note: "나만의 해산물 덮밥 만들기", tip: "쿠폰으로 우니, 참치, 가리비 선택!", lat: 40.8268, lng: 140.7383 },
+                    { start: "08:50", end: "09:00", time: "08:50 - 09:00", title: "교사이 센터 -> 호텔 복귀", cost: "-", type: "transit", note: "도보 10분", tip: "짐을 챙기러 복귀." },
+                    { start: "09:15", end: "09:20", time: "09:15 - 09:20", title: "체크아웃 완료", cost: "-", type: "hotel", note: "체크아웃 진행", tip: "소지품과 여권 재확인." },
+                    { start: "09:20", end: "09:50", time: "09:20 - 09:50", title: "호텔 -> 아오모리역 버스정류장", cost: "-", type: "transit", note: "도보 이동", tip: "공항 리무진 탑승장 이동." },
+                    { start: "10:00", end: "10:35", time: "10:00 - 10:35", title: "아오모리역 -> 아오모리공항 이동", cost: "￥860", type: "transit", note: "공항 버스 (860엔)", tip: "현금 잔돈 준비.", lat: 40.7332, lng: 140.6908 },
+                    { start: "10:40", end: "11:30", time: "10:40 - 11:30", title: "체크인, 출국수속", cost: "-", type: "transit", note: "탑승 수속 및 보안검사", tip: "공항 매점을 둘러보세요." },
+                    { start: "12:15", end: "12:35", time: "12:15 - 12:35", title: "KE2194 보딩", cost: "-", type: "flight", flightCode: "KE2194", note: "탑승 게이트 대기", tip: "남은 엔화 동전 사용!" },
+                    { start: "12:45", end: "15:30", time: "12:45 - 15:30", title: "아오모리 -> 인천 귀국", cost: "-", type: "flight", flightCode: "KE2194", note: "대한항공 KE2194 귀국편", tip: "인천공항 도착 후 입국 수속." }
+                ]
+            }
+        };
+
+        let currentDay = 1;
+        let leafletMap = null;
+        let mapMarkers = [];
+        let polylineLayer = null;
+
+        // Initialize App
+        window.onload = function() {
+            initMap();
+            switchDay(1);
+            startRealClock();
+        };
+
+        // Initialize Leaflet OpenStreetMap
+        function initMap() {
+            // Aomori central coordinates
+            leafletMap = L.map('map').setView([40.828, 140.738], 14);
+
+            // OpenStreetMap tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 18,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(leafletMap);
+        }
+
+        // Switch Day Tabs
+        function switchDay(dayNum) {
+            currentDay = dayNum;
+            for (let i = 1; i <= 3; i++) {
+                const btn = document.getElementById(`tab${i}`);
+                if (i === dayNum) {
+                    btn.className = "flex-1 py-2 rounded-xl font-bold text-xs transition bg-sky-600 text-white shadow-sm";
+                } else {
+                    btn.className = "flex-1 py-2 rounded-xl font-bold text-xs transition text-slate-600 hover:bg-white/50";
+                }
+            }
+            document.getElementById('mapDayTitle').innerText = `${dayNum}일차 아오모리 주요 동선 지도`;
+            renderDay(dayNum);
+            updateMapMarkers(dayNum);
+        }
+
+        function updateMapMarkers(dayNum) {
+            if (!leafletMap) return;
+
+            // Clear previous markers
+            mapMarkers.forEach(m => leafletMap.removeLayer(m));
+            mapMarkers = [];
+            if (polylineLayer) {
+                leafletMap.removeLayer(polylineLayer);
+            }
+
+            const items = travelData[dayNum].items;
+            const routeCoords = [];
+            let markCount = 1;
+
+            items.forEach((item) => {
+                if (item.lat && item.lng) {
+                    const latLng = [item.lat, item.lng];
+                    routeCoords.push(latLng);
+
+                    // Create custom marker element
+                    const customIcon = L.divIcon({
+                        className: 'custom-map-marker',
+                        html: `<span>${markCount}</span>`,
+                        iconSize: [26, 26],
+                        iconAnchor: [13, 13]
+                    });
+
+                    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
+
+                    const marker = L.marker(latLng, { icon: customIcon }).addTo(leafletMap);
+                    marker.bindPopup(`
+                        <div class="text-xs p-1">
+                            <strong class="text-sky-700 block text-sm font-bold mb-1">${markCount}. ${item.title}</strong>
+                            <p class="text-slate-600 mb-2">${item.note || ''}</p>
+                            <a href="${googleMapsUrl}" target="_blank" class="inline-block bg-sky-600 text-white font-bold px-2.5 py-1 rounded-lg text-[10px] hover:bg-sky-700 transition">
+                                📍 구글 지도에서 열기
+                            </a>
+                        </div>
+                    `);
+
+                    mapMarkers.push(marker);
+                    markCount++;
+                }
+            });
+
+            // Draw polyline connecting markers
+            if (routeCoords.length > 0) {
+                polylineLayer = L.polyline(routeCoords, {
+                    color: '#0284c7',
+                    weight: 3.5,
+                    dashArray: '6, 8',
+                    opacity: 0.8
+                }).addTo(leafletMap);
+
+                // Fit map bounds to show all markers smoothly
+                const bounds = L.latLngBounds(routeCoords);
+                leafletMap.fitBounds(bounds, { padding: [40, 40] });
+            }
+        }
+
+        function focusOnLocation(lat, lng, title) {
+            if (!leafletMap || !lat || !lng) return;
+            leafletMap.setView([lat, lng], 16, { animate: true, duration: 1 });
+            
+            // Find and open corresponding popup
+            mapMarkers.forEach(m => {
+                const pos = m.getLatLng();
+                if (Math.abs(pos.lat - lat) < 0.0001 && Math.abs(pos.lng - lng) < 0.0001) {
+                    m.openPopup();
+                }
+            });
+
+            // Smooth scroll to top map container
+            document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function renderDay(dayNum) {
+            const data = travelData[dayNum];
+            const container = document.getElementById('dayContent');
+            
+            let html = `
+                <div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 mb-3">
+                    <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-2.5">
+                        <div>
+                            <h2 class="font-extrabold text-slate-800 text-sm tracking-tight">${data.title}</h2>
+                            <span class="text-[11px] text-sky-600 font-bold">${data.date}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] text-slate-400 block font-medium">예상 1인 경비</span>
+                            <span class="text-xs font-mono font-bold text-emerald-600">${data.totalCost}</span>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+            `;
+
+            data.items.forEach((item) => {
+                let badgeColor = "bg-slate-100 text-slate-600 border-slate-200";
+                let icon = "📍";
+                if (item.type === 'flight') { badgeColor = "bg-indigo-50 text-indigo-700 border-indigo-200"; icon = "✈️"; }
+                else if (item.type === 'food') { badgeColor = "bg-amber-50 text-amber-700 border-amber-200"; icon = "🍜"; }
+                else if (item.type === 'hotel') { badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-200"; icon = "🏨"; }
+                else if (item.type === 'transit') { badgeColor = "bg-purple-50 text-purple-700 border-purple-200"; icon = "🚌"; }
+                else if (item.type === 'sight') { badgeColor = "bg-sky-50 text-sky-700 border-sky-200"; icon = "⛩️"; }
+                else if (item.type === 'shop') { badgeColor = "bg-rose-50 text-rose-700 border-rose-200"; icon = "🛍️"; }
+
+                let flightBtnHtml = '';
+                if (item.flightCode) {
+                    flightBtnHtml = `
+                        <button onclick="openFlightModal('${item.flightCode}')" class="mt-2.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl font-bold shadow-sm transition inline-flex items-center gap-1.5 active:scale-95">
+                            ✈️ ${item.flightCode} 실시간 운항 상황 보기
+                        </button>
+                    `;
+                }
+
+                let mapFocusBtn = '';
+                if (item.lat && item.lng) {
+                    mapFocusBtn = `
+                        <button onclick="focusOnLocation(${item.lat}, ${item.lng}, '${item.title}')" class="mt-2 text-[11px] bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 px-2.5 py-1 rounded-lg font-bold transition inline-flex items-center gap-1">
+                            🗺️ 지도에서 위치 보기
+                        </button>
+                    `;
+                }
+
+                html += `
+                    <div class="bg-slate-50 border border-slate-200/70 rounded-2xl p-3.5 hover:shadow-md transition">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="flex items-center space-x-2.5">
+                                <span class="text-xl">${icon}</span>
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[11px] font-mono font-bold text-sky-700 bg-sky-100/70 px-2 py-0.5 rounded-md border border-sky-200/60">${item.time}</span>
+                                        ${item.cost && item.cost !== '-' ? `<span class="text-[10px] font-mono font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md">${item.cost}</span>` : ''}
+                                    </div>
+                                    <h3 class="font-bold text-slate-800 text-sm mt-1 leading-snug">${item.title}</h3>
+                                </div>
+                            </div>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full border font-bold ${badgeColor} shrink-0">${item.type.toUpperCase()}</span>
+                        </div>
+                        
+                        ${item.note ? `<p class="text-xs text-slate-600 mt-2 font-medium bg-white p-2 rounded-xl border border-slate-100">📌 <strong>참고사항:</strong> ${item.note}</p>` : ''}
+
+                        <div class="mt-2 bg-amber-50/80 border border-amber-200/60 p-2.5 rounded-xl text-[11px] text-amber-900 leading-relaxed">
+                            <span class="font-bold text-amber-800 block mb-0.5">💡 상세 가이드 & 꿀팁</span>
+                            ${item.tip}
+                        </div>
+                        <div class="flex gap-2">
+                            ${mapFocusBtn}
+                            ${flightBtnHtml}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // Flight Modal Logic
+        function openFlightModal(flightCode) {
+            document.getElementById('modalFlightNumber').innerText = `${flightCode} 실시간 항공편 운항 상황`;
+            if(flightCode === 'KE2193') {
+                document.getElementById('modalDepLabel').innerText = "출발 (ICN T2)";
+                document.getElementById('modalDepPlace').innerText = "인천공항";
+                document.getElementById('modalDepTime').innerText = "09:05 출국";
+                document.getElementById('modalArrLabel').innerText = "도착 (AOJ)";
+                document.getElementById('modalArrPlace').innerText = "아오모리";
+                document.getElementById('modalArrTime').innerText = "11:35 도착";
+            } else {
+                document.getElementById('modalDepLabel').innerText = "출발 (AOJ)";
+                document.getElementById('modalDepPlace').innerText = "아오모리공항";
+                document.getElementById('modalDepTime').innerText = "12:15 탑승 / 12:45 출국";
+                document.getElementById('modalArrLabel').innerText = "도착 (ICN T2)";
+                document.getElementById('modalArrPlace').innerText = "인천공항";
+                document.getElementById('modalArrTime').innerText = "15:30 도착";
+            }
+
+            const modal = document.getElementById('flightModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('#flightModalContent').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeFlightModal() {
+            const modal = document.getElementById('flightModal');
+            modal.classList.add('opacity-0');
+            modal.querySelector('#flightModalContent').classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        // Realtime KST Clock & Schedule Matcher
+        function startRealClock() {
+            setInterval(() => {
+                const now = new Date();
+                const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+                const kstTime = new Date(utc + (3600000 * 9));
+                
+                const month = kstTime.getMonth() + 1;
+                const day = kstTime.getDate();
+                const hours = kstTime.getHours();
+                const minutes = kstTime.getMinutes();
+                const seconds = kstTime.getSeconds();
+                
+                const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                
+                document.getElementById('currentDateText').innerText = `대한민국(KST) ${month}월 ${day}일`;
+                document.getElementById('currentTimeText').innerText = timeStr;
+                
+                updateCurrentScheduleTask(hours, minutes);
+            }, 1000);
+        }
+
+        function updateCurrentScheduleTask(hours, minutes) {
+            const currentTotalMins = hours * 60 + minutes;
+            let activeDayData = travelData[currentDay];
+            let currentTask = null;
+
+            for (let item of activeDayData.items) {
+                if (!item.start || !item.end) continue;
+                const [startH, startM] = item.start.split(':').map(Number);
+                const [endH, endM] = item.end.split(':').map(Number);
+                
+                const startMins = startH * 60 + startM;
+                const endMins = endH * 60 + endM;
+
+                if (currentTotalMins >= startMins && currentTotalMins <= endMins) {
+                    currentTask = item;
+                    break;
+                }
+            }
+
+            const titleEl = document.getElementById('activeTaskTitle');
+            const timeEl = document.getElementById('activeTaskTime');
+
+            if (currentTask) {
+                titleEl.innerText = `${currentTask.title} (${currentTask.note || ''})`;
+                timeEl.innerText = currentTask.time;
+            } else {
+                titleEl.innerText = `현재 예정된 자유 시간 또는 휴식 중입니다.`;
+                timeEl.innerText = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+            }
+        }
+    </script>
+</body>
+</html>
